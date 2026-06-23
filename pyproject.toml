@@ -14,3 +14,6 @@ dependencies = [
 
 [tool.vercel]
 entrypoint = "api.index:app"
+
+[tool.vercel.scripts]
+build = "python scripts/prepare_public.py"

@@ -1,9 +1,10 @@
-const PHASE_COLORS = ["#6c8cff", "#a78bfa", "#fb923c", "#34d399"];
+const PHASE_COLORS = ["#a78bfa", "#fb923c", "#34d399"];
 
 const $ = (sel) => document.querySelector(sel);
 
 let analysisData = null;
 let rendererA, rendererB;
+let animTimers = { all: false, _allInterval: null };
 
 function init() {
   rendererA = new SkeletonRenderer($("#canvas-a"));
@@ -12,6 +13,7 @@ function init() {
   $("#video-a").addEventListener("change", (e) => handleUpload(e, "a"));
   $("#video-b").addEventListener("change", (e) => handleUpload(e, "b"));
   $("#analyze-btn").addEventListener("click", analyze);
+  $("#play-all").addEventListener("click", togglePlayAll);
   $("#slider-a").addEventListener("input", (e) => showFrame("a", +e.target.value));
   $("#slider-b").addEventListener("input", (e) => showFrame("b", +e.target.value));
 }
@@ -68,43 +70,44 @@ function renderResults() {
   $("#phases-info").classList.remove("hidden");
   $("#comparison").classList.remove("hidden");
   $("#timeline").classList.remove("hidden");
-  $("#phase-analysis").classList.remove("hidden");
   $("#impact-ball").classList.remove("hidden");
 
   renderPhaseLegend();
   renderTimeline();
-  renderPhaseComparisons();
   renderImpactBall();
+  renderImpactTiming();
   setupComparison();
 }
 
-function renderPhaseComparisons() {
-  const el = $("#phase-comparisons");
-  el.innerHTML = "";
-  const comparisons = analysisData.phase_comparisons || [];
+function renderImpactTiming() {
+  const el = $("#impact-timing");
+  const swingA = analysisData.swing_a;
+  const swingB = analysisData.swing_b;
+  const frameA = swingA.impact_frame ?? 0;
+  const frameB = swingB.impact_frame ?? 0;
+  const fpsA = swingA.fps || 30;
+  const fpsB = swingB.fps || 30;
+  const timeA = frameA / fpsA;
+  const timeB = frameB / fpsB;
+  const frameDiff = frameB - frameA;
+  const timeDiff = timeB - timeA;
 
-  comparisons.forEach((cmp, i) => {
-    const card = document.createElement("div");
-    card.className = "phase-comparison-card";
-    card.style.borderLeftColor = PHASE_COLORS[i] || "#6c8cff";
-    card.style.borderLeftWidth = "4px";
+  let diffText;
+  if (frameDiff === 0) {
+    diffText = "동일한 프레임에서 임팩트가 감지됩니다.";
+  } else if (frameDiff > 0) {
+    diffText = `비교 스윙이 ${Math.abs(frameDiff)}프레임(${Math.abs(timeDiff).toFixed(2)}초) 늦게 임팩트합니다.`;
+  } else {
+    diffText = `내 스윙이 ${Math.abs(frameDiff)}프레임(${Math.abs(timeDiff).toFixed(2)}초) 늦게 임팩트합니다.`;
+  }
 
-    let html = `<h3>${cmp.name_ko} <span style="opacity:0.6;font-weight:400">(${cmp.name_en})</span></h3>`;
-    html += `<p class="summary">${(cmp.brief_summary || cmp.summary || "").replace(/\*\*/g, "")}</p>`;
-
-    if (cmp.how_to_match?.length) {
-      html += "<p class='rec-title'>비교 스윙처럼 하려면</p><ul class='rec-list'>";
-      cmp.how_to_match.forEach((r) => { html += `<li>${r}</li>`; });
-      html += "</ul>";
-    } else if (cmp.recommendations?.length) {
-      html += "<p class='rec-title'>비교 스윙처럼 하려면</p><ul class='rec-list'>";
-      cmp.recommendations.forEach((r) => { html += `<li>${r}</li>`; });
-      html += "</ul>";
-    }
-
-    card.innerHTML = html;
-    el.appendChild(card);
-  });
+  el.innerHTML = `
+    <div class="impact-timing-grid">
+      <span><strong>내 스윙</strong> 프레임 ${frameA + 1} · ${timeA.toFixed(2)}초</span>
+      <span><strong>비교 스윙</strong> 프레임 ${frameB + 1} · ${timeB.toFixed(2)}초</span>
+    </div>
+    <p class="impact-timing-diff">${diffText}</p>
+  `;
 }
 
 function renderImpactBall() {
@@ -156,24 +159,27 @@ function setupCanvasSize(canvas, videoWidth, videoHeight) {
 }
 
 function setupComparison() {
+  stopPlayAll();
+
   const swingA = analysisData.swing_a;
   const swingB = analysisData.swing_b;
 
   setupCanvasSize($("#canvas-a"), swingA.width, swingA.height);
   setupCanvasSize($("#canvas-b"), swingB.width, swingB.height);
 
-  setupSide("a", swingA.all_frames, swingA.skeleton_connections, swingA.dominant_hand);
-  setupSide("b", swingB.all_frames, swingB.skeleton_connections, swingB.dominant_hand);
+  setupSide("a", swingA.all_frames, swingA.skeleton_connections);
+  setupSide("b", swingB.all_frames, swingB.skeleton_connections);
 
-  const impactA = swingA.impact_frame ?? 0;
-  const impactB = swingB.impact_frame ?? 0;
-  $("#slider-a").value = impactA;
-  $("#slider-b").value = impactB;
-  showFrame("a", impactA);
-  showFrame("b", impactB);
+  window._fps_a = swingA.fps || 30;
+  window._fps_b = swingB.fps || 30;
+
+  $("#slider-a").value = 0;
+  $("#slider-b").value = 0;
+  showFrame("a", 0);
+  showFrame("b", 0);
 }
 
-function setupSide(side, frames, connections, dominantHand) {
+function setupSide(side, frames, connections) {
   const slider = $(`#slider-${side}`);
   const max = Math.max(frames.length - 1, 0);
   slider.max = max;
@@ -185,10 +191,7 @@ function setupSide(side, frames, connections, dominantHand) {
 
   const render = (idx) => {
     if (frames[idx]) {
-      renderer.render(frames[idx], connections, canvas.width, canvas.height, {
-        dominantHand,
-        showBallAtImpact: true,
-      });
+      renderer.render(frames[idx], connections, canvas.width, canvas.height);
     }
   };
 
@@ -204,9 +207,59 @@ function showFrame(side, idx) {
   if (render && frames) {
     render(idx);
     const isImpact = frames[idx]?.is_impact;
-    const label = isImpact ? " (임팩트)" : "";
+    const label = isImpact ? " · 임팩트" : "";
     $(`#frame-info-${side}`).textContent = `${idx + 1} / ${frames.length}${label}`;
   }
+}
+
+function togglePlayAll() {
+  if (animTimers.all) {
+    stopPlayAll();
+    return;
+  }
+  startPlayAll();
+}
+
+function startPlayAll() {
+  const framesA = window._frames_a;
+  const framesB = window._frames_b;
+  if (!framesA?.length && !framesB?.length) return;
+
+  const maxLen = Math.max(framesA?.length || 0, framesB?.length || 0);
+  const fps = Math.max(window._fps_a || 30, window._fps_b || 30);
+  let idx = 0;
+
+  $("#play-all").textContent = "⏸ 전체 정지";
+  animTimers.all = true;
+
+  const tick = () => {
+    if (idx >= maxLen) {
+      stopPlayAll();
+      return;
+    }
+    if (framesA && idx < framesA.length) {
+      $("#slider-a").value = idx;
+      showFrame("a", idx);
+    }
+    if (framesB && idx < framesB.length) {
+      $("#slider-b").value = idx;
+      showFrame("b", idx);
+    }
+    idx += 1;
+  };
+
+  tick();
+  animTimers._allInterval = setInterval(tick, 1000 / fps);
+}
+
+function stopPlayAll() {
+  if (animTimers._allInterval) {
+    clearInterval(animTimers._allInterval);
+    animTimers._allInterval = null;
+  }
+  animTimers.all = false;
+  const btn = $("#play-all");
+  if (btn) btn.textContent = "▶ 전체 재생 (양쪽 동시)";
 }
 
 function renderTimeline() {

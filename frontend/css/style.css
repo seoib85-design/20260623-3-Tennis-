@@ -331,12 +331,40 @@ body {
 .dot.joint { background: var(--accent2); }
 .dot.racket { background: var(--racket); }
 .dot.ball { background: #f5d742; }
+.dot.impact { background: #fb923c; }
 .dot.zone { background: var(--accent); opacity: 0.6; }
 
 .section-hint {
   font-size: 0.85rem;
   color: var(--text-muted);
   margin: -0.25rem 0 1rem;
+}
+
+.impact-timing {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.impact-timing-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.impact-timing-grid strong {
+  color: var(--accent2);
+  margin-right: 0.35rem;
+}
+
+.impact-timing-diff {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
 }
 
 /* Timeline */

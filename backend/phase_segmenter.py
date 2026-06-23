@@ -1,10 +1,9 @@
 """
-테니스 포핸드 스윙 4단계 분할.
+테니스 포핸드 스윙 3단계 분할.
 
-  1. 준비 (Preparation)  - 스탠스 및 초기 자세
-  2. 테이크백 (Takeback) - 라켓 후방 당기기
-  3. 임팩트 (Impact)     - 공 접촉 순간
-  4. 팔로우스루 (Follow-through) - 임팩트 이후 마무리
+  1. 테이크백 (Takeback) - 라켓 후방 당기기
+  2. 임팩트 (Impact)     - 공 접촉 순간
+  3. 팔로우스루 (Follow-through) - 임팩트 이후 마무리
 """
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ from __future__ import annotations
 import numpy as np
 
 PHASES = [
-  {"id": "preparation", "name_ko": "준비", "name_en": "Preparation"},
   {"id": "takeback", "name_ko": "테이크백", "name_en": "Takeback"},
   {"id": "impact", "name_ko": "임팩트", "name_en": "Impact"},
   {"id": "follow_through", "name_ko": "팔로우스루", "name_en": "Follow-through"},
@@ -28,7 +26,7 @@ class PhaseSegmenter:
 
     velocities = self._compute_wrist_velocities(frames, wrist_key)
     impact_frame = int(np.argmax(velocities))
-    ranges = self._phase_ranges(velocities, impact_frame, total)
+    ranges = self._phase_ranges(impact_frame, total)
 
     phase_segments = []
     for phase, (start, end) in zip(PHASES, ranges):
@@ -92,40 +90,20 @@ class PhaseSegmenter:
       velocities = np.convolve(velocities, kernel, mode="same")
     return velocities
 
-  def _find_takeback_start(self, velocities: np.ndarray, impact: int) -> int:
-    """임팩트 이전 손목 움직임이 시작되는 프레임."""
-    if impact <= 0:
-      return 0
-
-    pre = velocities[:impact]
-    if len(pre) < 3:
-      return 0
-
-    threshold = max(np.percentile(pre, 25), np.max(pre) * 0.08)
-    for i in range(1, len(pre)):
-      if pre[i] > threshold and np.mean(pre[i : min(i + 3, len(pre))]) > threshold:
-        return i
-    return max(0, impact // 4)
-
-  def _phase_ranges(
-    self, velocities: np.ndarray, impact: int, total: int
-  ) -> list[tuple[int, int]]:
+  def _phase_ranges(self, impact: int, total: int) -> list[tuple[int, int]]:
     if total <= 0:
-      return [(0, 0), (0, 0), (0, 0), (0, 0)]
+      return [(0, 0), (0, 0), (0, 0)]
 
     impact = max(0, min(impact, total - 1))
 
     if total == 1:
-      return [(0, 0), (0, 0), (0, 0), (0, 0)]
+      return [(0, 0), (0, 0), (0, 0)]
 
-    takeback_start = self._find_takeback_start(velocities, impact)
-    prep_end = max(0, takeback_start - 1)
-    takeback_end = max(takeback_start, impact - 1)
+    takeback_end = max(0, impact - 1)
     follow_start = min(impact + 1, total - 1)
 
     return [
-      (0, prep_end),                  # 준비
-      (takeback_start, takeback_end), # 테이크백
-      (impact, impact),               # 임팩트
-      (follow_start, total - 1),      # 팔로우스루
+      (0, takeback_end),
+      (impact, impact),
+      (follow_start, total - 1),
     ]

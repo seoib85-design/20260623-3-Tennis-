@@ -115,6 +115,11 @@ def _impact_ball_info(all_frames: list[dict], impact_frame: int, dominant_hand: 
   return None
 
 
+@app.get("/api/health")
+def health():
+  return {"status": "ok"}
+
+
 @app.get("/api/phases")
 def get_phase_definitions():
   return {"phases": PHASES}
