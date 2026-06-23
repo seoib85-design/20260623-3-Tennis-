@@ -1,10 +1,10 @@
-# Vercel: 정적 프론트만 배포
+# Vercel: 루트 index.html + static/ 만 배포
 backend/
 scripts/
 api/
 render.yaml
 frontend/
+public/
 requirements.txt
 run.py
 README.md
-*.py
