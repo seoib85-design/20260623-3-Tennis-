@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>테니스 스윙 비교</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <h1>🎾 테니스 스윙 비교</h1>
+      <p>두 스윙 영상을 프레임 단위로 분석하고 관절 애니메이션으로 비교합니다</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 1. 영상 업로드 -->
+    <section class="card upload-section">
+      <h2>1. 스윙 영상 업로드</h2>
+      <div class="upload-grid">
+        <div class="upload-box" id="upload-a">
+          <label for="video-a">
+            <div class="upload-icon">📹</div>
+            <strong>내 현재 스윙</strong>
+            <span class="hint">MP4, AVI, MOV, WEBM</span>
+          </label>
+          <input type="file" id="video-a" accept="video/*" hidden />
+          <video id="preview-a" controls muted></video>
+          <span class="filename" id="name-a"></span>
+        </div>
+        <div class="upload-box" id="upload-b">
+          <label for="video-b">
+            <div class="upload-icon">📹</div>
+            <strong>비교할 스윙</strong>
+            <span class="hint">MP4, AVI, MOV, WEBM</span>
+          </label>
+          <input type="file" id="video-b" accept="video/*" hidden />
+          <video id="preview-b" controls muted></video>
+          <span class="filename" id="name-b"></span>
+        </div>
+      </div>
+      <button class="btn-primary" id="analyze-btn" disabled>분석 시작</button>
+      <div class="loading hidden" id="loading">
+        <div class="spinner"></div>
+        <p>포즈 분석 및 스윙 단계 분할 중...</p>
+      </div>
+    </section>
+
+    <!-- 2. 스윙 단계 정보 -->
+    <section class="card phases-info hidden" id="phases-info">
+      <h2>2. 스윙 단계 (생체역학 기준)</h2>
+      <div class="phase-legend" id="phase-legend"></div>
+    </section>
+
+    <!-- 3. 스켈레톤 비교 뷰 -->
+    <section class="card comparison hidden" id="comparison">
+      <h2>3. 스켈레톤 비교</h2>
+      <div class="play-all-row">
+        <button class="btn-primary btn-play-all" id="play-all">▶ 전체 재생 (양쪽 동시)</button>
+      </div>
+      <div class="canvas-grid">
+        <div class="canvas-panel">
+          <h3 id="label-a">내 스윙</h3>
+          <canvas id="canvas-a"></canvas>
+          <div class="frame-controls">
+            <button class="btn-sm" id="play-a">▶ 재생</button>
+            <input type="range" id="slider-a" min="0" max="0" value="0" />
+            <span id="frame-info-a">0 / 0</span>
+          </div>
+        </div>
+        <div class="canvas-panel">
+          <h3 id="label-b">비교 스윙</h3>
+          <canvas id="canvas-b"></canvas>
+          <div class="frame-controls">
+            <button class="btn-sm" id="play-b">▶ 재생</button>
+            <input type="range" id="slider-b" min="0" max="0" value="0" />
+            <span id="frame-info-b">0 / 0</span>
+          </div>
+        </div>
+      </div>
+      <div class="legend-bar">
+        <span><span class="dot joint"></span> 관절</span>
+      </div>
+    </section>
+
+    <!-- 4. 전체 타임라인 -->
+    <section class="card timeline hidden" id="timeline">
+      <h2>4. 전체 스윙 타임라인</h2>
+      <div class="timeline-row">
+        <span class="tl-label">내 스윙</span>
+        <div class="tl-bar" id="tl-a"></div>
+      </div>
+      <div class="timeline-row">
+        <span class="tl-label">비교 스윙</span>
+        <div class="tl-bar" id="tl-b"></div>
+      </div>
+    </section>
+
+    <!-- 5. 단계별 동작 차이 분석 -->
+    <section class="card phase-analysis hidden" id="phase-analysis">
+      <h2>5. 단계별 동작 차이 분석</h2>
+      <div id="phase-comparisons"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>테니스 포핸드 4단계: 준비 → 테이크백 → 임팩트 → 팔로우스루</p>
+  </footer>
+
+  <script src="/static/js/skeleton-renderer.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
