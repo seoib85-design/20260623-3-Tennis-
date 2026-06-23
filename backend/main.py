@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import tempfile
 import uuid
 from pathlib import Path
 
@@ -15,7 +14,6 @@ from fastapi.responses import FileResponse
 
 from backend.pose_analyzer import PoseAnalyzer
 from backend.phase_segmenter import PhaseSegmenter, PHASES
-from backend.swing_comparator import compare_swings
 from backend.impact_ball import analyze_impact_ball, compare_impact_balls
 
 app = FastAPI(title="Tennis Swing Comparator", version="1.0.0")
@@ -28,7 +26,7 @@ app.add_middleware(
 )
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
-UPLOAD_DIR = Path(tempfile.gettempdir()) / "tennis_swing_uploads"
+UPLOAD_DIR = Path("/tmp/tennis_swing_uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -155,10 +153,6 @@ async def analyze_swings(
       {"phases": result_b["phases"]},
     )
 
-    swing_a_for_cmp = {**result_a, "phase_definitions": PHASES}
-    swing_b_for_cmp = {**result_b, "phase_definitions": PHASES}
-    phase_comparisons = compare_swings(swing_a_for_cmp, swing_b_for_cmp)
-
     impact_ball_comparison = compare_impact_balls(
       result_a.get("impact_ball"),
       result_b.get("impact_ball"),
@@ -167,7 +161,6 @@ async def analyze_swings(
     return {
       "session_id": session_id,
       "phase_definitions": PHASES,
-      "phase_comparisons": phase_comparisons,
       "impact_ball_comparison": impact_ball_comparison,
       "swing_a": {
         "label": "내 스윙",
