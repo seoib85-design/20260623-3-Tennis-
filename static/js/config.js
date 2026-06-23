@@ -1,10 +1,28 @@
 /**
- * API 서버 주소
- * - 로컬: 빈 문자열 (같은 서버)
- * - Vercel: Render에 배포한 API URL로 변경
+ * API + Vercel 브라우저 분석 설정
  */
-window.API_BASE = window.API_BASE || (
-  location.hostname === "localhost" || location.hostname === "127.0.0.1"
+(function () {
+  const host = location.hostname;
+  const params = new URLSearchParams(location.search);
+
+  window.USE_BROWSER_ANALYZER =
+    params.get("browser") === "1" ||
+    host.endsWith(".vercel.app") ||
+    host.endsWith(".github.io");
+
+  if (params.get("api")) {
+    window.API_BASE = params.get("api").replace(/\/$/, "");
+    return;
+  }
+
+  const sameOrigin =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.endsWith(".onrender.com");
+
+  window.API_BASE = window.USE_BROWSER_ANALYZER
     ? ""
-    : "https://tennis-swing-api.onrender.com"
-);
+    : sameOrigin
+      ? ""
+      : "https://tennis-swing-api.onrender.com";
+})();
