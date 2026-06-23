@@ -1,7 +1,0 @@
-{
-  "name": "tennis-swing-comparator",
-  "private": true,
-  "scripts": {
-    "build": "python scripts/prepare_public.py"
-  }
-}
