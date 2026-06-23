@@ -1,4 +1,5 @@
 const PHASE_COLORS = ["#a78bfa", "#fb923c", "#34d399"];
+const API_BASE = window.API_BASE || "";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -51,7 +52,7 @@ async function analyze() {
   form.append("swing_b", fileB);
 
   try {
-    const res = await fetch("/api/analyze", { method: "POST", body: form });
+    const res = await fetch(`${API_BASE}/api/analyze`, { method: "POST", body: form });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `서버 오류 (${res.status})`);

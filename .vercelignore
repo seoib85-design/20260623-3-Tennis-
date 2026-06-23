@@ -1,0 +1,11 @@
+# Vercel: 정적 프론트만 배포 (MediaPipe/OpenCV는 Render에서 실행)
+app.py
+pyproject.toml
+.python-version
+requirements.txt
+run.py
+backend/
+scripts/
+api/
+render.yaml
+frontend/
