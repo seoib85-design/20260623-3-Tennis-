@@ -4,7 +4,6 @@ const $ = (sel) => document.querySelector(sel);
 
 let analysisData = null;
 let rendererA, rendererB;
-let animTimers = { a: null, b: null, all: false };
 
 function init() {
   rendererA = new SkeletonRenderer($("#canvas-a"));
@@ -13,9 +12,6 @@ function init() {
   $("#video-a").addEventListener("change", (e) => handleUpload(e, "a"));
   $("#video-b").addEventListener("change", (e) => handleUpload(e, "b"));
   $("#analyze-btn").addEventListener("click", analyze);
-  $("#play-a").addEventListener("click", () => togglePlay("a"));
-  $("#play-b").addEventListener("click", () => togglePlay("b"));
-  $("#play-all").addEventListener("click", togglePlayAll);
   $("#slider-a").addEventListener("input", (e) => showFrame("a", +e.target.value));
   $("#slider-b").addEventListener("input", (e) => showFrame("b", +e.target.value));
 }
@@ -73,10 +69,12 @@ function renderResults() {
   $("#comparison").classList.remove("hidden");
   $("#timeline").classList.remove("hidden");
   $("#phase-analysis").classList.remove("hidden");
+  $("#impact-ball").classList.remove("hidden");
 
   renderPhaseLegend();
   renderTimeline();
   renderPhaseComparisons();
+  renderImpactBall();
   setupComparison();
 }
 
@@ -92,16 +90,14 @@ function renderPhaseComparisons() {
     card.style.borderLeftWidth = "4px";
 
     let html = `<h3>${cmp.name_ko} <span style="opacity:0.6;font-weight:400">(${cmp.name_en})</span></h3>`;
-    html += `<p class="summary">${cmp.summary.replace(/\*\*/g, "")}</p>`;
+    html += `<p class="summary">${(cmp.brief_summary || cmp.summary || "").replace(/\*\*/g, "")}</p>`;
 
-    if (cmp.differences?.length) {
-      html += "<ul class='diff-list'>";
-      cmp.differences.forEach((d) => { html += `<li>${d}</li>`; });
+    if (cmp.how_to_match?.length) {
+      html += "<p class='rec-title'>비교 스윙처럼 하려면</p><ul class='rec-list'>";
+      cmp.how_to_match.forEach((r) => { html += `<li>${r}</li>`; });
       html += "</ul>";
-    }
-
-    if (cmp.recommendations?.length) {
-      html += "<p class='rec-title'>비교 스윙처럼 바꾸려면</p><ul class='rec-list'>";
+    } else if (cmp.recommendations?.length) {
+      html += "<p class='rec-title'>비교 스윙처럼 하려면</p><ul class='rec-list'>";
       cmp.recommendations.forEach((r) => { html += `<li>${r}</li>`; });
       html += "</ul>";
     }
@@ -109,6 +105,30 @@ function renderPhaseComparisons() {
     card.innerHTML = html;
     el.appendChild(card);
   });
+}
+
+function renderImpactBall() {
+  const el = $("#impact-ball-content");
+  const cmp = analysisData.impact_ball_comparison;
+  if (!cmp) {
+    el.innerHTML = "<p class='summary'>임팩트 공 비교 데이터가 없습니다.</p>";
+    return;
+  }
+
+  let html = `<p class="summary impact-summary">${cmp.summary}</p>`;
+  html += `<div class="impact-detail-grid">`;
+  html += `<div class="impact-detail"><strong>내 스윙</strong><p>${cmp.my_swing}</p></div>`;
+  html += `<div class="impact-detail"><strong>비교 스윙</strong><p>${cmp.compare_swing}</p></div>`;
+  html += `</div>`;
+  html += `<p class="impact-diff"><strong>차이점</strong> ${cmp.difference}</p>`;
+
+  if (cmp.how_to_match?.length) {
+    html += "<p class='rec-title'>비교 스윙처럼 맞추려면</p><ul class='rec-list'>";
+    cmp.how_to_match.forEach((r) => { html += `<li>${r}</li>`; });
+    html += "</ul>";
+  }
+
+  el.innerHTML = html;
 }
 
 function renderPhaseLegend() {
@@ -136,41 +156,46 @@ function setupCanvasSize(canvas, videoWidth, videoHeight) {
 }
 
 function setupComparison() {
-  stopAllAnim();
-
   const swingA = analysisData.swing_a;
   const swingB = analysisData.swing_b;
 
   setupCanvasSize($("#canvas-a"), swingA.width, swingA.height);
   setupCanvasSize($("#canvas-b"), swingB.width, swingB.height);
 
-  setupSide("a", swingA.all_frames, swingA.skeleton_connections, swingA.fps);
-  setupSide("b", swingB.all_frames, swingB.skeleton_connections, swingB.fps);
+  setupSide("a", swingA.all_frames, swingA.skeleton_connections, swingA.dominant_hand);
+  setupSide("b", swingB.all_frames, swingB.skeleton_connections, swingB.dominant_hand);
+
+  const impactA = swingA.impact_frame ?? 0;
+  const impactB = swingB.impact_frame ?? 0;
+  $("#slider-a").value = impactA;
+  $("#slider-b").value = impactB;
+  showFrame("a", impactA);
+  showFrame("b", impactB);
 }
 
-function setupSide(side, frames, connections, fps) {
+function setupSide(side, frames, connections, dominantHand) {
   const slider = $(`#slider-${side}`);
   const max = Math.max(frames.length - 1, 0);
   slider.max = max;
   slider.value = 0;
   $(`#frame-info-${side}`).textContent = `1 / ${frames.length}`;
-  $(`#play-${side}`).textContent = "▶ 재생";
 
   const canvas = $(`#canvas-${side}`);
   const renderer = side === "a" ? rendererA : rendererB;
 
   const render = (idx) => {
     if (frames[idx]) {
-      renderer.render(frames[idx], connections, canvas.width, canvas.height);
+      renderer.render(frames[idx], connections, canvas.width, canvas.height, {
+        dominantHand,
+        showBallAtImpact: true,
+      });
     }
   };
 
   render(0);
 
   window[`_frames_${side}`] = frames;
-  window[`_connections_${side}`] = connections;
   window[`_render_${side}`] = render;
-  window[`_fps_${side}`] = fps || 30;
 }
 
 function showFrame(side, idx) {
@@ -178,99 +203,10 @@ function showFrame(side, idx) {
   const frames = window[`_frames_${side}`];
   if (render && frames) {
     render(idx);
-    $(`#frame-info-${side}`).textContent = `${idx + 1} / ${frames.length}`;
+    const isImpact = frames[idx]?.is_impact;
+    const label = isImpact ? " (임팩트)" : "";
+    $(`#frame-info-${side}`).textContent = `${idx + 1} / ${frames.length}${label}`;
   }
-}
-
-function togglePlay(side) {
-  if (animTimers[side]) {
-    stopAnim(side);
-    return;
-  }
-  stopPlayAll();
-  startPlay(side);
-}
-
-function startPlay(side) {
-  const frames = window[`_frames_${side}`];
-  const slider = $(`#slider-${side}`);
-  const fps = window[`_fps_${side}`] || 30;
-  if (!frames || frames.length === 0) return;
-
-  let idx = +slider.value;
-  $(`#play-${side}`).textContent = "⏸ 정지";
-
-  animTimers[side] = setInterval(() => {
-    idx += 1;
-    if (idx >= frames.length) {
-      stopAnim(side);
-      return;
-    }
-    slider.value = idx;
-    showFrame(side, idx);
-  }, 1000 / fps);
-}
-
-function togglePlayAll() {
-  if (animTimers.all) {
-    stopPlayAll();
-    return;
-  }
-  stopAnim("a");
-  stopAnim("b");
-
-  const framesA = window._frames_a;
-  const framesB = window._frames_b;
-  if (!framesA?.length && !framesB?.length) return;
-
-  const maxLen = Math.max(framesA?.length || 0, framesB?.length || 0);
-  const fps = Math.max(window._fps_a || 30, window._fps_b || 30);
-  let idx = 0;
-
-  $("#play-all").textContent = "⏸ 전체 정지";
-  animTimers.all = true;
-
-  const tick = () => {
-    if (idx >= maxLen) {
-      stopPlayAll();
-      return;
-    }
-    if (framesA && idx < framesA.length) {
-      $("#slider-a").value = idx;
-      showFrame("a", idx);
-    }
-    if (framesB && idx < framesB.length) {
-      $("#slider-b").value = idx;
-      showFrame("b", idx);
-    }
-    idx += 1;
-  };
-
-  tick();
-  animTimers._allInterval = setInterval(tick, 1000 / fps);
-}
-
-function stopAnim(side) {
-  if (animTimers[side]) {
-    clearInterval(animTimers[side]);
-    animTimers[side] = null;
-    $(`#play-${side}`).textContent = "▶ 재생";
-  }
-}
-
-function stopPlayAll() {
-  if (animTimers._allInterval) {
-    clearInterval(animTimers._allInterval);
-    animTimers._allInterval = null;
-  }
-  animTimers.all = false;
-  $("#play-all").textContent = "▶ 전체 재생 (양쪽 동시)";
-}
-
-function stopAllAnim() {
-  stopAnim("a");
-  stopAnim("b");
-  stopPlayAll();
 }
 
 function renderTimeline() {

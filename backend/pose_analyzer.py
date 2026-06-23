@@ -5,11 +5,13 @@ from __future__ import annotations
 import cv2
 import mediapipe as mp
 
+from backend.ball_detector import detect_ball_in_frame, refine_ball_track
 from backend.video_rotation import (
   detect_rotation_from_pose,
   flip_landmarks_180,
   get_video_rotation,
   rotate_landmarks,
+  transform_ball,
 )
 
 _POSE_INDICES = {
@@ -88,6 +90,8 @@ class PoseAnalyzer:
 
     frames: list[dict] = []
     raw_frames: list[dict] = []
+    ball_raw: list[dict | None] = []
+    prev_ball = None
     frame_idx = 0
 
     while True:
@@ -101,6 +105,11 @@ class PoseAnalyzer:
       raw_landmarks = self._extract_raw_landmarks(result, width, height)
       raw_frames.append({"landmarks": raw_landmarks})
 
+      ball = detect_ball_in_frame(bgr, prev_ball)
+      if ball:
+        prev_ball = ball
+      ball_raw.append(ball)
+
       landmarks = self._build_display_landmarks(raw_landmarks)
       frames.append(
         {
@@ -113,25 +122,37 @@ class PoseAnalyzer:
 
     cap.release()
 
+    ball_raw = refine_ball_track(ball_raw)
+
     rotation = get_video_rotation(video_path)
     if rotation == 0:
       rotation = detect_rotation_from_pose(raw_frames, width, height)
 
+    src_w, src_h = width, height
     if rotation != 0:
       corrected = []
       disp_w, disp_h = width, height
-      for frame in frames:
+      for i, frame in enumerate(frames):
         lm, disp_w, disp_h = rotate_landmarks(
           frame["landmarks"], width, height, rotation
         )
-        corrected.append({**frame, "landmarks": lm})
+        ball = transform_ball(ball_raw[i], src_w, src_h, rotation, flip180=False)
+        corrected.append({**frame, "landmarks": lm, "ball_detected": ball})
       frames = corrected
       width, height = disp_w, disp_h
+    else:
+      frames = [
+        {**frame, "ball_detected": ball_raw[i]}
+        for i, frame in enumerate(frames)
+      ]
 
     frames = [
       {
         **frame,
         "landmarks": flip_landmarks_180(frame["landmarks"], width, height),
+        "ball_detected": transform_ball(
+          frame.get("ball_detected"), width, height, 0, flip180=True
+        ),
       }
       for frame in frames
     ]

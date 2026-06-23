@@ -295,7 +295,7 @@ body {
 
 .frame-controls input[type="range"] {
   flex: 1;
-  max-width: 200px;
+  max-width: 280px;
   accent-color: var(--accent);
 }
 
@@ -330,8 +330,14 @@ body {
 
 .dot.joint { background: var(--accent2); }
 .dot.racket { background: var(--racket); }
-.dot.ball { background: var(--ball); }
+.dot.ball { background: #f5d742; }
 .dot.zone { background: var(--accent); opacity: 0.6; }
+
+.section-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: -0.25rem 0 1rem;
+}
 
 /* Timeline */
 .timeline-row {
@@ -435,4 +441,53 @@ body {
   font-weight: 600;
   color: var(--accent);
   margin-top: 0.75rem;
+}
+
+/* Impact ball comparison */
+.impact-summary {
+  margin-bottom: 1rem;
+}
+
+.impact-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.impact-detail {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.impact-detail strong {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--accent2);
+  margin-bottom: 0.35rem;
+}
+
+.impact-detail p {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.impact-diff {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.impact-diff strong {
+  color: var(--text);
+}
+
+@media (max-width: 600px) {
+  .impact-detail-grid {
+    grid-template-columns: 1fr;
+  }
 }

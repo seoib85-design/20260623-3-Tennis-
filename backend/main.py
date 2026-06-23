@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from backend.pose_analyzer import PoseAnalyzer
 from backend.phase_segmenter import PhaseSegmenter, PHASES
 from backend.swing_comparator import compare_swings
+from backend.impact_ball import analyze_impact_ball, compare_impact_balls
 
 app = FastAPI(title="Tennis Swing Comparator", version="1.0.0")
 
@@ -31,7 +32,7 @@ UPLOAD_DIR = Path(tempfile.gettempdir()) / "tennis_swing_uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _normalize_landmarks(frames: list[dict], width: int, height: int) -> list[dict]:
+def _normalize_landmarks(frames: list[dict], width: int, height: int, impact_frame: int | None = None) -> list[dict]:
   """캔버스 렌더링용 0~1 정규화 좌표 추가."""
   normalized = []
   for frame in frames:
@@ -44,10 +45,23 @@ def _normalize_landmarks(frames: list[dict], width: int, height: int) -> list[di
         "ny": pt["y"] / height if height else 0,
       }
 
+    ball = frame.get("ball_detected")
+    ball_norm = None
+    if ball:
+      ball_norm = {
+        **ball,
+        "nx": ball["x"] / width if width else 0,
+        "ny": ball["y"] / height if height else 0,
+      }
+
+    is_impact = impact_frame is not None and frame.get("frame_index") == impact_frame
+
     normalized.append(
       {
         **frame,
         "landmarks": norm,
+        "ball": ball_norm,
+        "is_impact": is_impact,
       }
     )
   return normalized
@@ -62,11 +76,12 @@ def _process_video(path: str) -> dict:
     segmentation = segmenter.segment(pose_data)
 
     w, h = pose_data["width"], pose_data["height"]
-    all_frames = _normalize_landmarks(pose_data["frames"], w, h)
+    impact_frame = segmentation["impact_frame"]
+    all_frames = _normalize_landmarks(pose_data["frames"], w, h, impact_frame)
 
     phases_out = []
     for phase in segmentation["phases"]:
-      phase_frames = _normalize_landmarks(phase["frames"], w, h)
+      phase_frames = _normalize_landmarks(phase["frames"], w, h, impact_frame)
       phases_out.append(
         {
           "id": phase["id"],
@@ -89,9 +104,17 @@ def _process_video(path: str) -> dict:
       "skeleton_connections": pose_data["skeleton_connections"],
       "phases": phases_out,
       "all_frames": all_frames,
+      "impact_ball": _impact_ball_info(all_frames, impact_frame, pose_data["dominant_hand"]),
     }
   finally:
     analyzer.close()
+
+
+def _impact_ball_info(all_frames: list[dict], impact_frame: int, dominant_hand: str) -> dict | None:
+  for frame in all_frames:
+    if frame.get("frame_index") == impact_frame:
+      return analyze_impact_ball(frame, dominant_hand)
+  return None
 
 
 @app.get("/api/phases")
@@ -136,10 +159,16 @@ async def analyze_swings(
     swing_b_for_cmp = {**result_b, "phase_definitions": PHASES}
     phase_comparisons = compare_swings(swing_a_for_cmp, swing_b_for_cmp)
 
+    impact_ball_comparison = compare_impact_balls(
+      result_a.get("impact_ball"),
+      result_b.get("impact_ball"),
+    )
+
     return {
       "session_id": session_id,
       "phase_definitions": PHASES,
       "phase_comparisons": phase_comparisons,
+      "impact_ball_comparison": impact_ball_comparison,
       "swing_a": {
         "label": "내 스윙",
         **result_a,

@@ -26,9 +26,8 @@ def compare_swings(swing_a: dict, swing_b: dict) -> list[dict]:
         "phase_id": pid,
         "name_ko": phase_def["name_ko"],
         "name_en": phase_def["name_en"],
-        "summary": narrative["summary"],
-        "differences": narrative["differences"],
-        "recommendations": narrative["recommendations"],
+        "brief_summary": narrative["brief_summary"],
+        "how_to_match": narrative["how_to_match"],
       }
     )
 
@@ -313,14 +312,12 @@ def _build_narrative(phase: dict, ma: dict, mb: dict) -> dict:
   if not differences:
     differences.append(f"{name} 단계에서는 두 스윙의 관절 움직임이 비슷합니다.")
 
-  recommendations = _action_items(pid, ma, mb)
+  how_to_match = _action_items(pid, ma, mb)
 
-  summary = f"{name} 단계: " + differences[0]
-  if len(differences) > 1:
-    summary += " " + differences[1]
+  brief_parts = differences[:2]
+  brief_summary = f"{name}: " + " · ".join(brief_parts)
 
   return {
-    "summary": summary,
-    "differences": differences,
-    "recommendations": recommendations,
+    "brief_summary": brief_summary,
+    "how_to_match": how_to_match,
   }
