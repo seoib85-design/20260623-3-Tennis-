@@ -11,9 +11,3 @@ dependencies = [
   "numpy==1.26.4",
   "pillow==11.1.0",
 ]
-
-[tool.vercel]
-entrypoint = "api.index:app"
-
-[tool.vercel.scripts]
-build = "python scripts/prepare_public.py"
